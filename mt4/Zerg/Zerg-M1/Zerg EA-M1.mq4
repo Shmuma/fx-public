@@ -528,7 +528,7 @@ double currentGridProfit(int magic, int orderKind) {
            extra_points = MathMax(extra_points, 0.0);
 
            if (show && MathAbs(swap+comm) > 0.001)
-               Print(TimeToStr(TimeCurrent()) + ": Need to compensate swap=" + DoubleToStr(swap, 2) + " and comm="+DoubleToStr(comm, 2) +
+               Print("Need to compensate swap=" + DoubleToStr(swap, 2) + " and comm="+DoubleToStr(comm, 2) +
                      ", point price is " + DoubleToStr(profit/res, 2) + " extra move to add is " + DoubleToStr(extra_points, 2) + 
                      ", move=" + DoubleToStr(res, 2) + ", profit=" + DoubleToStr(profit, 2));
            res -= extra_points;

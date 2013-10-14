@@ -513,26 +513,16 @@ double currentGridProfit(int magic, int orderKind) {
    }
 
    if (compensateSwapAndCommission && MathAbs(profit) > 0.01 && MathAbs(res) > 0.01) {
-       bool show = FALSE;
-
-       if (!GlobalVariableCheck("WTF_open_time"))
-           GlobalVariableSet("WTF_open_time", Open[0]);
-
-       if (GlobalVariableGet("WTF_open_time") != Open[0]) {
-           show = TRUE;
-           GlobalVariableSet("WTF_open_time", Open[0]);
-       }
-
        // point price can be negative during spread compensations
        if (profit / res > 0.0) {
            double extra_points = -(swap + comm) * res / profit;
 
            extra_points = MathMax(extra_points, 0.0);
 
-           if (show && MathAbs(swap+comm) > 0.001)
-               Print("Need to compensate swap=" + DoubleToStr(swap, 2) + " and comm="+DoubleToStr(comm, 2) +
-                     ", point price is " + DoubleToStr(profit/res, 2) + " extra move to add is " + DoubleToStr(extra_points, 2) + 
-                     ", move=" + DoubleToStr(res, 2) + ", profit=" + DoubleToStr(profit, 2));
+           if (res - extra_points >= gridProfitTarget) {
+               Print("Compensated swap&comm = " + DoubleToStr(swap, 2) + " by extra move of " + DoubleToStr(extra_points, 2) + " pt" +
+                     ", point price = " + DoubleToStr(profit/res, 2) + ", move=" + DoubleToStr(res, 2) + ", profit=" + DoubleToStr(profit, 2));
+           }
            res -= extra_points;
        }
    }

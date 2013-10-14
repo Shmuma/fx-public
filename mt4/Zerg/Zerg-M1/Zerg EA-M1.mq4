@@ -686,8 +686,10 @@ bool updateTPLevels(int order_type)
 // 945D754CB0DC06D04243FCBA25FC0802
 void updateBanner() {
    int spread_div;
-   double current_dd = current_profit() / AccountBalance();
-   if (GlobalVariableGet("WTF_MaxDD") > current_dd)
+   double current_dd = -(current_profit() + AccountCredit()) / AccountBalance();
+   if (current_dd < 0.0)
+       current_dd = 0.0;
+   if (GlobalVariableGet("WTF_MaxDD") < current_dd)
        GlobalVariableSet("WTF_MaxDD", current_dd);
    if (Digits == 5)
        spread_div = 10;
@@ -699,10 +701,10 @@ void updateBanner() {
    banner = banner + "Lots: " + DoubleToStr(lots_to_trade, 2);
    banner = banner + "   |   MaxOpenOrders: " + MaxOpenOrders;
    banner = banner + "   |   GridOrderGapPips: " + GridOrderGapPips;
-   banner = banner + "   |   Spread: " + (MarketInfo(Symbol(), MODE_SPREAD) / spread_div) + " pips";
+   banner = banner + "   |   Spread: " + DoubleToStr(MarketInfo(Symbol(), MODE_SPREAD) / spread_div, 1) + " pips";
    banner = banner + "\n";
    banner = banner + "                                          ";
-   banner = banner + "    Maximum DrawDown: " + 100.0 * GlobalVariableGet("WTF_MaxDD") + "%";
+   banner = banner + "    Maximum DrawDown: " + DoubleToStr(100.0 * GlobalVariableGet("WTF_MaxDD"), 2) + "%";
    banner = banner + "      |              Current DrawDown: " + DoubleToStr(100.0 * current_dd, 2) + "%";
    banner = banner 
    + "\n";

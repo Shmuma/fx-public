@@ -1,0 +1,28 @@
+
+ifneq ($(OS),Windows_NT)
+      ML4=ml4
+#      DEST_DIR=~/bin/mt4-bin/experts
+      DEST_DIR=~/bin/mt4-bin-real/experts
+      CP=cp
+      RM=rm
+
+      IND_DIR=$(DEST_DIR)/indicators/
+      LIB_DIR=$(DEST_DIR)/libraries/
+      INC_DIR=$(DEST_DIR)/include/
+      EXP_DIR=$(DEST_DIR)
+      SCR_DIR=$(DEST_DIR)/scripts/
+else
+#      ML4=C:\PROGRA~1\ALPARI~3\METALANG.EXE
+      ML4=C:\PROGRA~1\ALPARI~2\METALANG.EXE
+      DEST_DIR=C:\USERS\SHMUMA\APPDATA\LOCAL\VIRTUA~1\PROGRA~1\ALPARI~2\EXPERTS
+#      DEST_DIR=C:\USERS\SHMUMA\APPDATA\LOCAL\VIRTUA~1\PROGRA~1\ALPARI~3\EXPERTS
+      CP=cmd /C copy
+      RM=cmd /C del
+
+      IND_DIR=$(DEST_DIR)\indicators
+      LIB_DIR=$(DEST_DIR)\libraries
+      INC_DIR=$(DEST_DIR)\include
+      EXP_DIR=$(DEST_DIR)
+      SCR_DIR=$(DEST_DIR)\scripts
+endif
+

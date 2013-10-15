@@ -62,6 +62,8 @@ int init() {
 //   gridProfitTarget = 85; // profit target in grid
    resend_order = FALSE;
    tp_update_request = TRUE;
+   if (!setExplicitTP)
+       turnOffTakeProfits();
    resend_kind = 0;
    last_high_envelope = 0.0;
    last_low_envelope = 0.0;
@@ -583,6 +585,21 @@ double current_profit() {
    return (res);
 }
 
+
+// disables TP on all our orders
+void turnOffTakeProfits()
+{
+    for (int i = 0; i < OrdersTotal(); i++) {
+        if (!OrderSelect(i, SELECT_BY_POS, MODE_TRADES))
+            continue;
+
+        if (OrderSymbol() != Symbol() || OrderMagicNumber() != MagicNumber)
+            continue;
+
+        if (OrderTakeProfit() > Point)
+            OrderModify(OrderTicket(), OrderOpenPrice(), OrderStopLoss(), 0.0, 0);
+    }
+}
 
 
 // Recalculates and updates (if needed) TP levels of orders with specified type

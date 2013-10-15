@@ -520,7 +520,7 @@ double currentGridProfit(int magic, int orderKind) {
            extra_points = MathMax(extra_points, 0.0);
 
            if (res - extra_points >= gridProfitTarget) {
-               Print("Compensated swap&comm = " + DoubleToStr(swap, 2) + " by extra move of " + DoubleToStr(extra_points, 2) + " pt" +
+               Print("Compensated swap&comm = " + DoubleToStr(swap+comm, 2) + " by extra move of " + DoubleToStr(extra_points, 2) + " pt" +
                      ", point price = " + DoubleToStr(profit/res, 2) + ", move=" + DoubleToStr(res, 2) + ", profit=" + DoubleToStr(profit, 2));
            }
            res -= extra_points;

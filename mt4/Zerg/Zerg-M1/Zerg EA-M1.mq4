@@ -179,6 +179,16 @@ void start() {
    }
    init_market_info();
 
+   // every hour update TP leves to reflect possible extra swap
+   static int prev_hour = 0;
+   if (prev_hour != Hour()) {
+       if (setExplicitTP && compensateSwapAndCommission) {
+           Print("New hour, update TP levels");
+           tp_update_request = TRUE;
+       }
+       prev_hour = Hour();
+   }
+
    int long_max_index = -1;
    int short_max_index = -1;
    for (int i = 0; i < OrdersTotal(); i++) {
@@ -488,49 +498,69 @@ void closeShortGrid(int Ai_0) {
 }
 
 
+double getCompensationMove(int orderKind)
+{
+    double extra = 0.0, profit = 0.0, move = 0.0;
+
+    if (!compensateSwapAndCommission)
+        return (0.0);
+
+    for (int i = 0; i < OrdersTotal(); i++) {
+        OrderSelect(i, SELECT_BY_POS, MODE_TRADES);
+        if (OrderMagicNumber() == MagicNumber) {
+            if (OrderSymbol() == Symbol()) {
+                if (OrderType() == OP_BUY && orderKind == 1) {
+                    move += (Bid - OrderOpenPrice()) / symbolPoint;
+                    extra += OrderSwap() + OrderCommission();
+                    profit += OrderProfit();
+                }
+                if (OrderType() == OP_SELL && orderKind == 2) {
+                    move += (OrderOpenPrice() - Ask) / symbolPoint;
+                    extra += OrderSwap() + OrderCommission();
+                    profit += OrderProfit();
+                }
+            }
+        }
+    }
+
+    if (MathAbs(profit) < 0.001 || MathAbs(move) < 0.001)
+        return (0.0);
+
+    // point price can be negative during spread compensations
+    if (profit / move > 0.0) {
+        double extra_points = -extra * move / profit;
+
+        extra_points = MathMax(extra_points, 0.0);
+
+        if (extra_points > 0.001)
+            Print("compensation = " + DoubleToStr(extra_points, 1));
+
+        return (extra_points);
+    }
+
+    return (0.0);
+}
+
+
 // 5710F6E623305B2C1458238C9757193B
 // current profit on grid
 double currentGridProfit(int magic, int orderKind) {
    double res = 0.0;
-   double profit = 0.0;
-   double swap = 0.0, comm = 0.0;
-   for (int Li_16 = 0; Li_16 < OrdersTotal(); Li_16++) {
-      OrderSelect(Li_16, SELECT_BY_POS, MODE_TRADES);
+   for (int i = 0; i < OrdersTotal(); i++) {
+      OrderSelect(i, SELECT_BY_POS, MODE_TRADES);
       if (OrderMagicNumber() == magic) {
           if (OrderSymbol() == Symbol()) {
-              if (OrderType() == OP_BUY && orderKind == 1) {
+              if (OrderType() == OP_BUY && orderKind == 1)
                  res += (Bid - OrderOpenPrice()) / symbolPoint;
-                 swap += OrderSwap();
-                 comm += OrderCommission();
-                 profit += OrderProfit();
-              }
-              if (OrderType() == OP_SELL && orderKind == 2) {
+              if (OrderType() == OP_SELL && orderKind == 2)
                  res += (OrderOpenPrice() - Ask) / symbolPoint;
-                 swap += OrderSwap();
-                 comm += OrderCommission();
-                 profit += OrderProfit();
-              }
          }
       }
    }
 
-   if (compensateSwapAndCommission && MathAbs(profit) > 0.01 && MathAbs(res) > 0.01) {
-       // point price can be negative during spread compensations
-       if (profit / res > 0.0) {
-           double extra_points = -(swap + comm) * res / profit;
-
-           extra_points = MathMax(extra_points, 0.0);
-
-           if (res - extra_points >= gridProfitTarget) {
-               Print("Compensated swap&comm = " + DoubleToStr(swap+comm, 2) + " by extra move of " + DoubleToStr(extra_points, 2) + " pt" +
-                     ", point price = " + DoubleToStr(profit/res, 2) + ", move=" + DoubleToStr(res, 2) + ", profit=" + DoubleToStr(profit, 2));
-           }
-           res -= extra_points;
-       }
-   }
-
-   return (res);
+   return (res - getCompensationMove(orderKind));
 }
+
 
 // AA5EA51BFAC7B64E723BF276E0075513
 void init_market_info() {
@@ -660,7 +690,7 @@ bool updateTPLevels(int order_type)
     if (grid_size == 0)
         return (TRUE);
 
-    int profit_target = gridProfitTarget * (symbolPoint / Point);
+    int profit_target = (gridProfitTarget + getCompensationMove(order_type)) * (symbolPoint / Point);
     int extra_distance = MathCeil((profit_target - extremum_distance) / grid_size);
     double tp_level;
 

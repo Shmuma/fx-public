@@ -532,7 +532,7 @@ double getCompensationMove(int orderType)
 
         extra_points = MathMax(extra_points, 0.0);
 
-        if (extra_points > 0.001)
+        if (extra_points > 0.05)
             Print("compensation = " + DoubleToStr(extra_points, 1));
 
         return (extra_points);

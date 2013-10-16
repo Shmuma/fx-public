@@ -182,10 +182,8 @@ void start() {
    // every hour update TP leves to reflect possible extra swap
    static int prev_hour = 0;
    if (prev_hour != Hour()) {
-       if (setExplicitTP && compensateSwapAndCommission) {
-           Print("New hour, update TP levels");
+       if (setExplicitTP && compensateSwapAndCommission)
            tp_update_request = TRUE;
-       }
        prev_hour = Hour();
    }
 
@@ -531,10 +529,6 @@ double getCompensationMove(int orderType)
         double extra_points = -extra * move / profit;
 
         extra_points = MathMax(extra_points, 0.0);
-
-        if (extra_points > 0.05)
-            Print("compensation = " + DoubleToStr(extra_points, 1));
-
         return (extra_points);
     }
 

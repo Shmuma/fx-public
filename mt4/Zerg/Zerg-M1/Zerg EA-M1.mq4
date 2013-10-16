@@ -215,8 +215,8 @@ void start() {
        nextShortOrderIndex = 0;
 
    if (!setExplicitTP) {
-       double longGridProfit = currentGridProfit(MagicNumber, 1);
-       double shortGridProfit = currentGridProfit(MagicNumber, 2);
+       double longGridProfit = currentGridProfit(MagicNumber, OP_BUY);
+       double shortGridProfit = currentGridProfit(MagicNumber, OP_SELL);
 
        // profit target reached on long grid
        if (longGridProfit >= gridProfitTarget)
@@ -498,7 +498,7 @@ void closeShortGrid(int Ai_0) {
 }
 
 
-double getCompensationMove(int orderKind)
+double getCompensationMove(int orderType)
 {
     double extra = 0.0, profit = 0.0, move = 0.0;
 
@@ -509,12 +509,12 @@ double getCompensationMove(int orderKind)
         OrderSelect(i, SELECT_BY_POS, MODE_TRADES);
         if (OrderMagicNumber() == MagicNumber) {
             if (OrderSymbol() == Symbol()) {
-                if (OrderType() == OP_BUY && orderKind == 1) {
+                if (OrderType() == orderType) {
                     move += (Bid - OrderOpenPrice()) / symbolPoint;
                     extra += OrderSwap() + OrderCommission();
                     profit += OrderProfit();
                 }
-                if (OrderType() == OP_SELL && orderKind == 2) {
+                if (OrderType() == orderType) {
                     move += (OrderOpenPrice() - Ask) / symbolPoint;
                     extra += OrderSwap() + OrderCommission();
                     profit += OrderProfit();
@@ -544,21 +544,21 @@ double getCompensationMove(int orderKind)
 
 // 5710F6E623305B2C1458238C9757193B
 // current profit on grid
-double currentGridProfit(int magic, int orderKind) {
+double currentGridProfit(int magic, int orderType) {
    double res = 0.0;
    for (int i = 0; i < OrdersTotal(); i++) {
       OrderSelect(i, SELECT_BY_POS, MODE_TRADES);
       if (OrderMagicNumber() == magic) {
           if (OrderSymbol() == Symbol()) {
-              if (OrderType() == OP_BUY && orderKind == 1)
+              if (OrderType() == orderType)
                  res += (Bid - OrderOpenPrice()) / symbolPoint;
-              if (OrderType() == OP_SELL && orderKind == 2)
+              if (OrderType() == orderType)
                  res += (OrderOpenPrice() - Ask) / symbolPoint;
          }
       }
    }
 
-   return (res - getCompensationMove(orderKind));
+   return (res - getCompensationMove(orderType));
 }
 
 

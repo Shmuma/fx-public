@@ -23,7 +23,6 @@ extern int Slippage = 3;
 extern bool setExplicitTP = FALSE;
 extern int gridProfitTarget = 85;
 extern bool compensateSwapAndCommission = TRUE;
-extern bool closeGridOnOppositeSignal = TRUE;
 
 double expertVersion;
 double firstEnvelopeDev;
@@ -280,7 +279,7 @@ void increase_long_grid_if_needed(int grid_size, int magic) {
        if (OrderSymbol() == Symbol()) {
            if (OrderType() == OP_BUY) {
                // very rare condition (close on opposite signal?)
-               if (closeGridOnOppositeSignal && closeSignal() == 2)
+               if (closeSignal() == 2)
                    closeLongGrid_requested = TRUE;
 
                if (increaseGridCheck(grid_size) > 0) {
@@ -334,7 +333,7 @@ void increase_short_grid_if_needed(int grid_size, int magic) {
       OrderSelect(grid_size, SELECT_BY_POS);
       if (OrderSymbol() == Symbol()) {
          if (OrderType() == OP_SELL) {
-             if (closeGridOnOppositeSignal && closeSignal() == 1)
+             if (closeSignal() == 1)
                 closeShortGrid_requested = TRUE;
 
             if (increaseGridCheck(grid_size) > 0) {

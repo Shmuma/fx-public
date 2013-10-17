@@ -390,17 +390,6 @@ int initialSignal() {
       if (upper_prev < close_prev)
           return (2);
 
-   // TODO: if reverse first conditions, results are better
-   // UPD: in long-term, results are worse
-/*
-   if (lower_2_back > close_2_back)
-      if (lower_prev > close_prev)
-          return (1);
-   if (upper_2_back < close_2_back)
-      if (upper_prev < close_prev)
-          return (2);
- */
-
    return (0);
 }
 
@@ -430,14 +419,6 @@ int closeSignal() {
       Ld_16 = iClose(NULL, 0, 1);
    }
    HideTestIndicators(FALSE);
-
-   // not sure
-/*
-   if (MqlLock_50BEBD01_7_I1IiIIIii1(Ld_32, close_prev))
-      if (MqlLock_50BEBD01_7_1ii11Ii1I1(last_low_envelope, last_close, Gi_272, Ld_8, Ld_16)) return (1);
-   if (MqlLock_50BEBD01_7_III1IiIIii(Ld_24, close_prev))
-      if (MqlLock_50BEBD01_7_11IIIII1Ii(last_high_envelope, last_close, Gi_272, Ld_0, Ld_16)) return (2);
-*/
 
    if (Ld_32 < close_prev)
        if (!((last_low_envelope < last_close && !Gi_272) || (Gi_272 && Ld_8 < Ld_16)))
@@ -507,12 +488,12 @@ double getCompensationMove(int orderType)
         OrderSelect(i, SELECT_BY_POS, MODE_TRADES);
         if (OrderMagicNumber() == MagicNumber) {
             if (OrderSymbol() == Symbol()) {
-                if (OrderType() == orderType) {
+                if (OrderType() == orderType && orderType == OP_BUY) {
                     move += (Bid - OrderOpenPrice()) / symbolPoint;
                     extra += OrderSwap() + OrderCommission();
                     profit += OrderProfit();
                 }
-                if (OrderType() == orderType) {
+                if (OrderType() == orderType && orderType == OP_SELL) {
                     move += (OrderOpenPrice() - Ask) / symbolPoint;
                     extra += OrderSwap() + OrderCommission();
                     profit += OrderProfit();
@@ -544,15 +525,17 @@ double currentGridProfit(int magic, int orderType) {
       OrderSelect(i, SELECT_BY_POS, MODE_TRADES);
       if (OrderMagicNumber() == magic) {
           if (OrderSymbol() == Symbol()) {
-              if (OrderType() == orderType)
+              if (OrderType() == orderType && orderType == OP_BUY)
                  res += (Bid - OrderOpenPrice()) / symbolPoint;
-              if (OrderType() == orderType)
+              if (OrderType() == orderType && orderType == OP_SELL)
                  res += (OrderOpenPrice() - Ask) / symbolPoint;
          }
       }
    }
 
-   return (res - getCompensationMove(orderType));
+   double comp = getCompensationMove(orderType);
+   res -= comp;
+   return (res);
 }
 
 

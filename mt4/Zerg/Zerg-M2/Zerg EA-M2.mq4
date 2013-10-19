@@ -4,9 +4,14 @@
 #include <stdlib.mqh>
 
 // Zerg EA changelog:
+
+// M1
 // 1. explicit TP levels
 // 2. compensated swap and commission in price targets
 // 3. option to disable close of grid on opposite signal
+
+// M2 changes
+// 1. increase grid on profit
 
 extern string MM_Settings = "================ Money Management";
 extern bool MM_UseMoneyManagement = TRUE;
@@ -23,6 +28,9 @@ extern int Slippage = 3;
 extern bool setExplicitTP = FALSE;
 extern int gridProfitTarget = 85;
 extern bool compensateSwapAndCommission = TRUE;
+
+extern string M2_Setting = "==================== M2 settings";
+extern bool increaseGridOnProfit = FALSE;
 
 double expertVersion;
 double firstEnvelopeDev;
@@ -186,30 +194,16 @@ void start() {
        prev_hour = Hour();
    }
 
-   int long_max_index = -1;
-   int short_max_index = -1;
-   for (int i = 0; i < OrdersTotal(); i++) {
-      OrderSelect(i, SELECT_BY_POS);
-      if (OrderMagicNumber() == MagicNumber) {
-         if (OrderSymbol() == Symbol()) {
-            int order_index = StrToInteger(StringSubstr(OrderComment(), 7));
+   // determine both grids settings
+   int max_long_index = -1, min_long_index = -1;
+   int max_short_index = -1, min_short_index = -1;
+   int long_count, short_count;
 
-            if (OrderType() == OP_BUY) {
-               long_max_index = i;
-               nextLongOrderIndex = MathMax(nextLongOrderIndex, order_index);
-            }
-            if (OrderType() == OP_SELL) {
-               short_max_index = i;
-               nextShortOrderIndex = MathMax(nextShortOrderIndex, order_index);
-            }
-         }
-      }
-   }
+   long_count  = get_grid_params(OP_BUY, min_long_index, max_long_index);
+   short_count = get_grid_params(OP_SELL, min_short_index, max_short_index);
 
-   if (long_max_index < 0)
-       nextLongOrderIndex = 0;
-   if (short_max_index < 0)
-       nextShortOrderIndex = 0;
+   nextLongOrderIndex = long_count;
+   nextShortOrderIndex = short_count;
 
    if (!setExplicitTP) {
        double longGridProfit = currentGridProfit(MagicNumber, OP_BUY);
@@ -229,12 +223,12 @@ void start() {
        }
 
    if (!closeLongGrid_requested)
-       increase_long_grid_if_needed(long_max_index, MagicNumber);
+       increase_long_grid_if_needed(long_count, min_long_index, max_long_index);
    else
        closeLongGrid(MagicNumber);
 
    if (!closeShortGrid_requested)
-       increase_short_grid_if_needed(short_max_index, MagicNumber);
+       increase_short_grid_if_needed(short_count, min_short_index, max_short_index);
    else
        closeShortGrid(MagicNumber);
 
@@ -249,8 +243,43 @@ void start() {
 }
 
 
+
+// Determine count of orders and index of orders with min and max price in a
+// grid of this kind.
+int get_grid_params (int orderType, int& min_index, int& max_index)
+{
+    int count = 0;
+    int i;
+    double min_price, max_price;
+
+    min_index = -1;
+    max_index = -1;
+
+    for (i = 0; i < OrdersTotal(); i++) {
+        if (!OrderSelect(i, SELECT_BY_POS, MODE_TRADES))
+            continue;
+
+        if (OrderSymbol() != Symbol() || OrderMagicNumber() != MagicNumber || OrderType() != orderType)
+            continue;
+
+        count++;
+        if (min_index == -1 || OrderOpenPrice() < min_price) {
+            min_index = i;
+            min_price = OrderOpenPrice();
+        }
+
+        if (max_index == -1 || OrderOpenPrice() > max_price) {
+            max_index = i;
+            max_price = OrderOpenPrice();
+        }
+    }
+    return (count);
+}
+
+
 // 78BAA8FAE18F93570467778F2E829047
-void increase_long_grid_if_needed(int grid_size, int magic) {
+void increase_long_grid_if_needed(int grid_size, int min_index, int max_index)
+{
    int ticket;
    double SL_level = 0.0;
    int error;
@@ -258,10 +287,10 @@ void increase_long_grid_if_needed(int grid_size, int magic) {
    if (StopLoss > 0.0)
        SL_level = Ask - StopLoss * symbolPoint;
 
-   if (grid_size < 0) {
+   if (grid_size == 0) {
        if (initialSignal() == 1 || (resend_order && resend_kind == 1)) {
           ticket = OrderSend(Symbol(), OP_BUY, lots_to_trade, Ask, Slippage, 0, 0,
-                             "WTF000 " + (nextLongOrderIndex + 1), magic, 0, Blue);
+                             "WTF000 " + (nextLongOrderIndex + 1), MagicNumber, 0, Blue);
          if (ticket < 0) {
             error = GetLastError();
             Print("Error Opening Buy Order(", error, "): ", ErrorDescription(error));
@@ -275,27 +304,23 @@ void increase_long_grid_if_needed(int grid_size, int magic) {
          }
       }
    } else {
-       OrderSelect(grid_size, SELECT_BY_POS);
-       if (OrderSymbol() == Symbol()) {
-           if (OrderType() == OP_BUY) {
-               // very rare condition (close on opposite signal?)
-               if (closeSignal() == 2)
-                   closeLongGrid_requested = TRUE;
+       // very rare condition (close on opposite signal?)
+       if (closeSignal() == 2)
+           closeLongGrid_requested = TRUE;
 
-               if (increaseGridCheck(grid_size) > 0) {
-                   if (nextLongOrderIndex < MaxOpenOrders) {
-                       ticket = OrderSend(Symbol(), OP_BUY, lots_to_trade, Ask, Slippage, 0, 0,
-                                          "WTF000 " + (nextLongOrderIndex + 1), magic, 0, Blue);
-                       if (ticket < 0) {
-                           error = GetLastError();
-                           Print("Error Opening Buy Order(", error, "): ", ErrorDescription(error));
-                       } else {
-                           OrderSelect(ticket, SELECT_BY_TICKET);
-                           OrderModify(OrderTicket(), OrderOpenPrice(), SL_level, 0.0, 0, Blue);
-                           tp_update_request = TRUE;
-                       }
-                   }
-               }
+       if (grid_size > MaxOpenOrders)
+           return;
+
+       if (increaseGridCheck(TRUE, min_index, max_index)) {
+           ticket = OrderSend(Symbol(), OP_BUY, lots_to_trade, Ask, Slippage, 0, 0,
+                              "WTF000 " + (nextLongOrderIndex + 1), MagicNumber, 0, Blue);
+           if (ticket < 0) {
+               error = GetLastError();
+               Print("Error Opening Buy Order(", error, "): ", ErrorDescription(error));
+           } else {
+               OrderSelect(ticket, SELECT_BY_TICKET);
+               OrderModify(OrderTicket(), OrderOpenPrice(), SL_level, 0.0, 0, Blue);
+               tp_update_request = TRUE;
            }
        }
    }
@@ -303,20 +328,19 @@ void increase_long_grid_if_needed(int grid_size, int magic) {
 
 
 // 50257C26C4E5E915F022247BABD914FE
-void increase_short_grid_if_needed(int grid_size, int magic) {
+void increase_short_grid_if_needed(int grid_size, int min_index, int max_index)
+{
    int ticket;
-   double SL_level;
+   double SL_level = 0.0;
    int error;
 
    if (StopLoss > 0)
        SL_level = Bid + StopLoss * symbolPoint;
-   else
-       SL_level = 0.0;
 
-   if (grid_size < 0) {
+   if (grid_size == 0) {
        if (initialSignal() == 2 || (resend_order && resend_kind == 2)) {
           ticket = OrderSend(Symbol(), OP_SELL, lots_to_trade, Bid, Slippage, 0, 0,
-                             "WTF000 " + (nextShortOrderIndex + 1), magic, 0, Red);
+                             "WTF000 " + (nextShortOrderIndex + 1), MagicNumber, 0, Red);
          if (ticket < 0) {
             error = GetLastError();
             Print("Error Opening Sell Order(", error, "): ", ErrorDescription(error));
@@ -330,43 +354,63 @@ void increase_short_grid_if_needed(int grid_size, int magic) {
          }
       }
    } else {
-      OrderSelect(grid_size, SELECT_BY_POS);
-      if (OrderSymbol() == Symbol()) {
-         if (OrderType() == OP_SELL) {
-             if (closeSignal() == 1)
-                closeShortGrid_requested = TRUE;
+       if (closeSignal() == 1)
+           closeShortGrid_requested = TRUE;
 
-            if (increaseGridCheck(grid_size) > 0) {
-               if (nextShortOrderIndex < MaxOpenOrders) {
-                   ticket = OrderSend(Symbol(), OP_SELL, lots_to_trade, Bid, Slippage, 0, 0,
-                                      "WTF000 " + (nextShortOrderIndex + 1), magic, 0, Red);
-                  if (ticket < 0) {
-                     error = GetLastError();
-                     Print("Error Opening Sell Order(", error, "): ", ErrorDescription(error));
-                  } else {
-                     OrderSelect(ticket, SELECT_BY_TICKET);
-                     OrderModify(OrderTicket(), OrderOpenPrice(), SL_level, 0.0, 0, Red);
-                     tp_update_request = TRUE;
-                  }
-               }
-            }
-         }
-      }
+       if (grid_size > MaxOpenOrders)
+           return;
+
+       if (increaseGridCheck(FALSE, min_index, max_index)) {
+           ticket = OrderSend(Symbol(), OP_SELL, lots_to_trade, Bid, Slippage, 0, 0,
+                              "WTF000 " + (nextShortOrderIndex + 1), MagicNumber, 0, Red);
+           if (ticket < 0) {
+               error = GetLastError();
+               Print("Error Opening Sell Order(", error, "): ", ErrorDescription(error));
+           } else {
+               OrderSelect(ticket, SELECT_BY_TICKET);
+               OrderModify(OrderTicket(), OrderOpenPrice(), SL_level, 0.0, 0, Red);
+               tp_update_request = TRUE;
+           }
+       }
    }
 }
 
 
 // 689C35E4872BA754D7230B8ADAA28E48
-int increaseGridCheck(int Ai_0) {
-   OrderSelect(Ai_0, SELECT_BY_POS);
-   if (OrderType() == OP_BUY) {
-       if (OrderOpenPrice() - Ask >= GridOrderGapPips * symbolPoint)
-           return (1);
+bool increaseGridCheck(bool long_grid, int min_index, int max_index)
+{
+   if (long_grid) {
+       OrderSelect(min_index, SELECT_BY_POS);
+       if (OrderType() == OP_BUY) {
+           Comment("Long: Min price = " + DoubleToStr(OrderOpenPrice(), 5) + ", delta = " + DoubleToStr((OrderOpenPrice() - Ask) / Point, 1));
+           if (OrderOpenPrice() - Ask >= GridOrderGapPips * symbolPoint)
+               return (TRUE);
+       }
+
+       OrderSelect(max_index, SELECT_BY_POS);
+       if (increaseGridOnProfit) {
+           if (Ask - OrderOpenPrice() >= GridOrderGapPips * symbolPoint)
+               return (TRUE);
+       }
    }
-   if (OrderType() == OP_SELL)
-       if (Bid - OrderOpenPrice() >= GridOrderGapPips * symbolPoint)
-           return (2);
-   return (0);
+   else {
+       OrderSelect(max_index, SELECT_BY_POS);
+       if (OrderType() == OP_SELL) {
+           Comment("Short: Max price = " + DoubleToStr(OrderOpenPrice(), 5) + ", delta = " + DoubleToStr((Bid-OrderOpenPrice()) / Point, 1));
+           if (Bid - OrderOpenPrice() >= GridOrderGapPips * symbolPoint)
+               return (TRUE);
+       }
+       else
+           Comment("Short grid check - failed. max_index = " + max_index + ", type = " + OrderType());
+
+       OrderSelect(min_index, SELECT_BY_POS);
+       if (increaseGridOnProfit) {
+           if (OrderOpenPrice() - Bid >= GridOrderGapPips * symbolPoint)
+               return (TRUE);
+       }
+   }
+
+   return (FALSE);
 }
 
 

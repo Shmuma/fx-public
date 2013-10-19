@@ -29,8 +29,10 @@ extern bool setExplicitTP = FALSE;
 extern int gridProfitTarget = 85;
 extern bool compensateSwapAndCommission = TRUE;
 
-extern string M2_Setting = "==================== M2 settings";
-extern bool increaseGridOnProfit = FALSE;
+extern string M2_Setting = "==================== Increase on profit";
+extern bool increaseOnProfit = FALSE;
+extern int increaseOnProfitGap = 5;
+extern int increaseMaxOrders = 3;
 
 double expertVersion;
 double firstEnvelopeDev;
@@ -311,7 +313,7 @@ void increase_long_grid_if_needed(int grid_size, int min_index, int max_index)
        if (grid_size > MaxOpenOrders)
            return;
 
-       if (increaseGridCheck(TRUE, min_index, max_index)) {
+       if (increaseGridCheck(grid_size, TRUE, min_index, max_index)) {
            ticket = OrderSend(Symbol(), OP_BUY, lots_to_trade, Ask, Slippage, 0, 0,
                               "WTF000 " + (nextLongOrderIndex + 1), MagicNumber, 0, Blue);
            if (ticket < 0) {
@@ -360,7 +362,7 @@ void increase_short_grid_if_needed(int grid_size, int min_index, int max_index)
        if (grid_size > MaxOpenOrders)
            return;
 
-       if (increaseGridCheck(FALSE, min_index, max_index)) {
+       if (increaseGridCheck(grid_size, FALSE, min_index, max_index)) {
            ticket = OrderSend(Symbol(), OP_SELL, lots_to_trade, Bid, Slippage, 0, 0,
                               "WTF000 " + (nextShortOrderIndex + 1), MagicNumber, 0, Red);
            if (ticket < 0) {
@@ -377,36 +379,34 @@ void increase_short_grid_if_needed(int grid_size, int min_index, int max_index)
 
 
 // 689C35E4872BA754D7230B8ADAA28E48
-bool increaseGridCheck(bool long_grid, int min_index, int max_index)
+bool increaseGridCheck(int grid_size, bool long_grid, int min_index, int max_index)
 {
    if (long_grid) {
        OrderSelect(min_index, SELECT_BY_POS);
        if (OrderType() == OP_BUY) {
-           Comment("Long: Min price = " + DoubleToStr(OrderOpenPrice(), 5) + ", delta = " + DoubleToStr((OrderOpenPrice() - Ask) / Point, 1));
            if (OrderOpenPrice() - Ask >= GridOrderGapPips * symbolPoint)
                return (TRUE);
        }
 
        OrderSelect(max_index, SELECT_BY_POS);
-       if (increaseGridOnProfit) {
-           if (Ask - OrderOpenPrice() >= GridOrderGapPips * symbolPoint)
-               return (TRUE);
+       if (increaseOnProfit) {
+           if (Ask - OrderOpenPrice() >= increaseOnProfitGap * symbolPoint)
+               if (grid_size < increaseMaxOrders)
+                   return (TRUE);
        }
    }
    else {
        OrderSelect(max_index, SELECT_BY_POS);
        if (OrderType() == OP_SELL) {
-           Comment("Short: Max price = " + DoubleToStr(OrderOpenPrice(), 5) + ", delta = " + DoubleToStr((Bid-OrderOpenPrice()) / Point, 1));
            if (Bid - OrderOpenPrice() >= GridOrderGapPips * symbolPoint)
                return (TRUE);
        }
-       else
-           Comment("Short grid check - failed. max_index = " + max_index + ", type = " + OrderType());
 
        OrderSelect(min_index, SELECT_BY_POS);
-       if (increaseGridOnProfit) {
-           if (OrderOpenPrice() - Bid >= GridOrderGapPips * symbolPoint)
-               return (TRUE);
+       if (increaseOnProfit) {
+           if (OrderOpenPrice() - Bid >= increaseOnProfitGap * symbolPoint)
+               if (grid_size < increaseMaxOrders)
+                   return (TRUE);
        }
    }
 

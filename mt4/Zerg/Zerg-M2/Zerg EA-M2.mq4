@@ -57,6 +57,10 @@ int nextShortOrderIndex;
 bool tp_update_request;
 
 
+int tickets_count = 0;
+int tickets[100];
+
+
 int init() {
    if (!IsDllsAllowed())
        Alert("You have to enable DLLs in order to work with this product");
@@ -196,6 +200,32 @@ void start() {
        prev_hour = Hour();
    }
 
+   // check alive tickets
+   if (tickets_count > 0) {
+       int alive_tickets = 0;
+       int i;
+       double profit = 0, extra = 0;
+
+       for (i = 0; i < tickets_count; i++) {
+           if (!OrderSelect(tickets[i], SELECT_BY_TICKET))
+               continue;
+           if (OrderCloseTime() == 0)
+               alive_tickets++;
+           else {
+               profit += OrderProfit();
+               extra += OrderSwap() + OrderCommission();
+           }
+       }
+
+       if (alive_tickets == 0) {
+           // all orders closed, show final profit
+           Print("Closed grid of size " + tickets_count + ", profit = " + DoubleToStr(profit, 2) + ", extra = " + DoubleToStr(extra, 2));
+           if (profit < 0)
+               Print("Negative!");
+           tickets_count = 0;
+       }
+   }
+
    // determine both grids settings
    int max_long_index = -1, min_long_index = -1;
    int max_short_index = -1, min_short_index = -1;
@@ -212,11 +242,15 @@ void start() {
        double shortGridProfit = currentGridProfit(MagicNumber, OP_SELL);
 
        // profit target reached on long grid
-       if (longGridProfit >= gridProfitTarget)
+       if (longGridProfit >= gridProfitTarget) {
+           Print("Profit for long " + DoubleToStr(longGridProfit, 2) + ", actual profit = " + DoubleToStr(current_profit(), 2));
            closeLongGrid_requested = TRUE;
+       }
        // profit target reached on short grid
-       if (shortGridProfit >= gridProfitTarget)
+       if (shortGridProfit >= gridProfitTarget) {
+           Print("Profit for short " + DoubleToStr(shortGridProfit, 2) + ", actual profit = " + DoubleToStr(current_profit(), 2));
            closeShortGrid_requested = TRUE;
+       }
    }
    else
        if (tp_update_request) {
@@ -299,6 +333,8 @@ void increase_long_grid_if_needed(int grid_size, int min_index, int max_index)
             resend_order = TRUE;
             resend_kind = 1;
          } else {
+             tickets[tickets_count] = ticket;
+             tickets_count++;
             OrderSelect(ticket, SELECT_BY_TICKET);
             OrderModify(OrderTicket(), OrderOpenPrice(), SL_level, 0.0, 0, Blue);
             resend_order = FALSE;
@@ -320,6 +356,8 @@ void increase_long_grid_if_needed(int grid_size, int min_index, int max_index)
                error = GetLastError();
                Print("Error Opening Buy Order(", error, "): ", ErrorDescription(error));
            } else {
+             tickets[tickets_count] = ticket;
+             tickets_count++;
                OrderSelect(ticket, SELECT_BY_TICKET);
                OrderModify(OrderTicket(), OrderOpenPrice(), SL_level, 0.0, 0, Blue);
                tp_update_request = TRUE;
@@ -349,6 +387,9 @@ void increase_short_grid_if_needed(int grid_size, int min_index, int max_index)
             resend_order = TRUE;
             resend_kind = 2;
          } else {
+             tickets[tickets_count] = ticket;
+             tickets_count++;
+
             OrderSelect(ticket, SELECT_BY_TICKET);
             OrderModify(OrderTicket(), OrderOpenPrice(), SL_level, 0.0, 0, Red);
             resend_order = FALSE;
@@ -369,6 +410,9 @@ void increase_short_grid_if_needed(int grid_size, int min_index, int max_index)
                error = GetLastError();
                Print("Error Opening Sell Order(", error, "): ", ErrorDescription(error));
            } else {
+             tickets[tickets_count] = ticket;
+             tickets_count++;
+
                OrderSelect(ticket, SELECT_BY_TICKET);
                OrderModify(OrderTicket(), OrderOpenPrice(), SL_level, 0.0, 0, Red);
                tp_update_request = TRUE;

@@ -31,8 +31,8 @@ extern bool compensateSwapAndCommission = TRUE;
 
 extern string M2_Setting = "==================== Increase on profit";
 extern bool increaseOnProfit = FALSE;
-extern int increaseOnProfitGap = 5;
-extern int increaseMaxOrders = 3;
+extern int increaseOnProfitGap = 1;
+extern int increaseMaxOrders = 4;
 
 double expertVersion;
 double firstEnvelopeDev;

@@ -24,6 +24,8 @@ extern bool setExplicitTP = FALSE;
 extern int gridProfitTarget = 85;
 extern bool compensateSwapAndCommission = TRUE;
 
+extern bool noMoreNewGrids = FALSE;
+
 double expertVersion;
 double firstEnvelopeDev;
 double secondEnvelopeDev;
@@ -259,6 +261,8 @@ void increase_long_grid_if_needed(int grid_size, int magic) {
        SL_level = Ask - StopLoss * symbolPoint;
 
    if (grid_size < 0) {
+       if (noMoreNewGrids)
+           return;
        if (initialSignal() == 1 || (resend_order && resend_kind == 1)) {
           ticket = OrderSend(Symbol(), OP_BUY, lots_to_trade, Ask, Slippage, 0, 0,
                              "WTF000 " + (nextLongOrderIndex + 1), magic, 0, Blue);
@@ -314,6 +318,8 @@ void increase_short_grid_if_needed(int grid_size, int magic) {
        SL_level = 0.0;
 
    if (grid_size < 0) {
+       if (noMoreNewGrids)
+           return;
        if (initialSignal() == 2 || (resend_order && resend_kind == 2)) {
           ticket = OrderSend(Symbol(), OP_SELL, lots_to_trade, Bid, Slippage, 0, 0,
                              "WTF000 " + (nextShortOrderIndex + 1), magic, 0, Red);

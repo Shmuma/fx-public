@@ -32,10 +32,16 @@ extern bool setExplicitTP = FALSE;
 extern int gridProfitTarget = 85;
 extern bool compensateSwapAndCommission = TRUE;
 
-extern string M2_Setting = "==================== Increase on profit";
+extern string M2_IncreaseOnProfit = "==================== Increase on profit";
 extern bool increaseOnProfit = FALSE;
 extern int increaseOnProfitGap = 1;
 extern int increaseMaxOrders = 4;
+
+extern string M2_EntryByTrend = "==================== Entry by trend";
+extern bool entryByTrend = FALSE;
+extern int entryByTrend_TF = 1440;
+extern int entryByTrend_FastMAPeriod = 5;
+extern int entryByTrend_SlowMAPeriod = 10;
 
 double expertVersion;
 double firstEnvelopeDev;
@@ -433,14 +439,32 @@ int initialSignal() {
    double close_prev = iClose(NULL, 0, 1);
    HideTestIndicators(FALSE);
 
+   int result = 0;
+
    if (lower_2_back < close_2_back)
       if (lower_prev > close_prev)
-          return (1);
-   if (upper_2_back > close_2_back)
-      if (upper_prev < close_prev)
-          return (2);
+          result = 1;
 
-   return (0);
+   if (result == 0) {
+       if (upper_2_back > close_2_back)
+           if (upper_prev < close_prev)
+               result = 2;
+   }
+
+   // check for trend direction if needed
+   if (result != 0 && entryByTrend) {
+       double fast = iMA(NULL, entryByTrend_TF, entryByTrend_FastMAPeriod, 1, MODE_SMA, PRICE_CLOSE, 0);
+       double slow = iMA(NULL, entryByTrend_TF, entryByTrend_SlowMAPeriod, 1, MODE_SMA, PRICE_CLOSE, 0);
+
+       // result == 1 means long grid signal. If fast < slow, we have a downtrend, disable signal
+       if (result == 1 && fast < slow)
+           result = 0;
+       // result == 2 means short grid signal. If fast > slow, we have an uptrend, disable signal
+       if (result == 2 && fast > slow)
+           result = 0;
+   }
+
+   return (result);
 }
 
 

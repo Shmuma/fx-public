@@ -8,6 +8,9 @@
 // 2. compensated swap and commission in price targets
 // 3. option to disable close of grid on opposite signal
 
+extern string Control_options = "================ Control options";
+extern bool noMoreNewGrids = FALSE;
+
 extern string MM_Settings = "================ Money Management";
 extern bool MM_UseMoneyManagement = TRUE;
 extern double MM_LotSize = 0.01;
@@ -23,8 +26,6 @@ extern int Slippage = 3;
 extern bool setExplicitTP = FALSE;
 extern int gridProfitTarget = 85;
 extern bool compensateSwapAndCommission = TRUE;
-
-extern bool noMoreNewGrids = FALSE;
 
 double expertVersion;
 double firstEnvelopeDev;

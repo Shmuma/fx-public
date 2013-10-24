@@ -13,6 +13,9 @@
 // M2 changes
 // 1. increase grid on profit
 
+extern string Control_options = "================ Control options";
+extern bool noMoreNewGrids = FALSE;
+
 extern string MM_Settings = "================ Money Management";
 extern bool MM_UseMoneyManagement = TRUE;
 extern double MM_LotSize = 0.01;
@@ -28,8 +31,6 @@ extern int Slippage = 3;
 extern bool setExplicitTP = FALSE;
 extern int gridProfitTarget = 85;
 extern bool compensateSwapAndCommission = TRUE;
-
-extern bool noMoreNewGrids = FALSE;
 
 extern string M2_Setting = "==================== Increase on profit";
 extern bool increaseOnProfit = FALSE;

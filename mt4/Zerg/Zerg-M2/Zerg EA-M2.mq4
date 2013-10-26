@@ -41,6 +41,7 @@ extern string M2_EntryByTrend = "==================== Entry by trend";
 extern bool entryByTrend = FALSE;
 extern int entryByTrend_TF = 1440;
 extern int entryByTrend_FastMAPeriod = 5;
+extern int entryByTrend_MidMAPeriod = 5;
 extern int entryByTrend_SlowMAPeriod = 10;
 
 double expertVersion;
@@ -69,6 +70,14 @@ bool tp_update_request;
 int init() {
    if (!IsDllsAllowed())
        Alert("You have to enable DLLs in order to work with this product");
+
+   // check entry by trend MA settings
+   if (entryByTrend) {
+       if (!(entryByTrend_FastMAPeriod <= entryByTrend_MidMAPeriod && entryByTrend_MidMAPeriod <= entryByTrend_SlowMAPeriod)) {
+           Print("Inconsistent entryByTrend MA periods");
+           return (-1);
+       }
+   }
 
    expertVersion = 1.0;
    firstEnvelopePeriod = 80;
@@ -454,14 +463,27 @@ int initialSignal() {
    // check for trend direction if needed
    if (result != 0 && entryByTrend) {
        double fast = iMA(NULL, entryByTrend_TF, entryByTrend_FastMAPeriod, 1, MODE_SMA, PRICE_CLOSE, 0);
+       double mid  = iMA(NULL, entryByTrend_TF, entryByTrend_MidMAPeriod,  1, MODE_SMA, PRICE_CLOSE, 0);
        double slow = iMA(NULL, entryByTrend_TF, entryByTrend_SlowMAPeriod, 1, MODE_SMA, PRICE_CLOSE, 0);
 
-       // result == 1 means long grid signal. If fast < slow, we have a downtrend, disable signal
-       if (result == 1 && fast < slow)
+       int ma_signal = 0;
+
+       // long signal if slow under mid and mid under fast
+       if (slow <= mid && mid <= fast)
+           ma_signal = 1;
+       else
+           // short signal if slow above mid and mid above fast
+           if (slow >= mid && mid >= fast)
+               ma_signal = -1;
+
+       // result == 1 means long grid signal. If we have an opposite signal from MA, do not open
+       if (result == 1 && ma_signal == -1) {
            result = 0;
-       // result == 2 means short grid signal. If fast > slow, we have an uptrend, disable signal
-       if (result == 2 && fast > slow)
+       }
+       // result == 2 means short grid signal. 
+       if (result == 2 && ma_signal == 1) {
            result = 0;
+       }
    }
 
    return (result);

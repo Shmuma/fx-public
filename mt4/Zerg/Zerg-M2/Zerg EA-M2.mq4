@@ -44,6 +44,10 @@ extern int entryByTrend_FastMAPeriod = 5;
 extern int entryByTrend_MidMAPeriod = 5;
 extern int entryByTrend_SlowMAPeriod = 10;
 
+extern bool entryOptUseIndex = FALSE;
+extern int entryOptMaxN = 30;
+extern int entryOptIndex = 0;
+
 double expertVersion;
 double firstEnvelopeDev;
 double secondEnvelopeDev;
@@ -67,9 +71,53 @@ int nextShortOrderIndex;
 bool tp_update_request;
 
 
+void translateIndexIntoVals(int N, int index, int& a, int& b, int& c)
+{
+    int i = 0;
+    for (a = 1; a <= N; a++)
+        for (b = a+1; b <= N; b++)
+            for (c = b+1; c <= N; c++) {
+                if (i == index)
+                    return;
+                i++;
+            }
+}
+
+
+
+int translateValsIntoIndex(int N, int a1, int b1, int c1)
+{
+    int i = 0;
+    for (int a = 1; a <= N; a++)
+        for (int b = a+1; b <= N; b++)
+            for (int c = b+1; c <= N; c++) {
+                if (a == a1 && b == b1 && c == c1)
+                    return (i);
+                i++;
+            }
+
+    return (-1);
+}
+
+
+
 int init() {
    if (!IsDllsAllowed())
        Alert("You have to enable DLLs in order to work with this product");
+
+   // translate index
+   if (entryOptUseIndex) {
+       int a, b, c;
+
+       translateIndexIntoVals(entryOptMaxN, entryOptIndex, a, b, c);
+       Print("Opt index " + entryOptIndex + " with N=" + entryOptMaxN + " gives (" + a + "," + b + "," + c + ")");
+       entryByTrend_FastMAPeriod = a;
+       entryByTrend_MidMAPeriod = b;
+       entryByTrend_SlowMAPeriod = c;
+   }
+   else {
+       Print("MA settings gives index " + translateValsIntoIndex(entryOptMaxN, entryByTrend_FastMAPeriod, entryByTrend_MidMAPeriod, entryByTrend_SlowMAPeriod) + " with N=" + entryOptMaxN);
+   }
 
    // check entry by trend MA settings
    if (entryByTrend) {

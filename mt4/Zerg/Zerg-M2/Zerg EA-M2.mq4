@@ -40,13 +40,17 @@ extern int increaseMaxOrders = 4;
 extern string M2_EntryByTrend = "==================== Entry by trend";
 extern bool entryByTrend = FALSE;
 extern int entryByTrend_TF = 1440;
-extern int entryByTrend_FastMAPeriod = 5;
-extern int entryByTrend_MidMAPeriod = 5;
+extern int entryByTrend_FastMAPeriod = 1;
+extern int entryByTrend_MidMAPeriod = 2;
 extern int entryByTrend_SlowMAPeriod = 10;
 
-extern bool entryOptUseIndex = FALSE;
-extern int entryOptMaxN = 30;
-extern int entryOptIndex = 0;
+// used only in optimisation of MA to reduce search space
+//extern
+bool entryOptUseIndex = FALSE;
+//extern
+int entryOptMaxN = 30;
+//extern
+int entryOptIndex = 0;
 
 double expertVersion;
 double firstEnvelopeDev;
@@ -239,7 +243,7 @@ void deinit() {
 
 // EA2B2676C28C0DB26D39331A336C6B92
 void start() {
-   if (Symbol() != "AUDNZD") {
+   if (StringSubstr(Symbol(), 6) != "AUDNZD") {
       Comment("ERROR: EA will only run on AUDNZD");
       return;
    }

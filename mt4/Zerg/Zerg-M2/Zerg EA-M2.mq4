@@ -243,7 +243,7 @@ void deinit() {
 
 // EA2B2676C28C0DB26D39331A336C6B92
 void start() {
-   if (StringSubstr(Symbol(), 6) != "AUDNZD") {
+   if (StringSubstr(Symbol(), 0, 6) != "AUDNZD") {
       Comment("ERROR: EA will only run on AUDNZD");
       return;
    }

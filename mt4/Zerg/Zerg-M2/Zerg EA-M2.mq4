@@ -12,6 +12,7 @@
 
 // M2 changes
 // 1. increase grid on profit
+// 2. entry by trend direction (trend detected by 3MA)
 
 extern string Control_options = "================ Control options";
 extern bool noMoreNewGrids = FALSE;
@@ -51,6 +52,11 @@ bool entryOptUseIndex = FALSE;
 int entryOptMaxN = 30;
 //extern
 int entryOptIndex = 0;
+
+extern string M2_FlexibleTP = "==================== Flexible TP levels";
+extern bool flexibleTP = FALSE;
+extern int  flexibleTP_CCI = 14;
+extern int  flexibleTP_CCI_level = 100;
 
 double expertVersion;
 double firstEnvelopeDev;
@@ -282,11 +288,19 @@ void start() {
        double shortGridProfit = currentGridProfit(MagicNumber, OP_SELL);
 
        // profit target reached on long grid
-       if (longGridProfit >= gridProfitTarget)
-           closeLongGrid_requested = TRUE;
+       if (longGridProfit >= gridProfitTarget) {
+           if (!flexibleTP)
+               closeLongGrid_requested = TRUE;
+           else
+               closeLongGrid_requested = flexible_longCloseSignal();
+       }
        // profit target reached on short grid
-       if (shortGridProfit >= gridProfitTarget)
-           closeShortGrid_requested = TRUE;
+       if (shortGridProfit >= gridProfitTarget) {
+           if (!flexibleTP)
+               closeShortGrid_requested = TRUE;
+           else
+               closeShortGrid_requested = flexible_shortCloseSignal();
+       }
    }
    else
        if (tp_update_request) {
@@ -1107,4 +1121,31 @@ void updateBanner() {
       ObjectSet("WTF_BKGR28", OBJPROP_XDISTANCE, 453);
       ObjectSet("WTF_BKGR28", OBJPROP_YDISTANCE, Li_12);
    }
+}
+
+
+bool flexible_longCloseSignal()
+{
+    // long close signal - cross of CCI indicator of 100 line upside-down
+    double prev_value = iCCI(NULL, 0, flexibleTP_CCI, PRICE_CLOSE, 2);
+    double curr_value = iCCI(NULL, 0, flexibleTP_CCI, PRICE_CLOSE, 1);
+
+    if (prev_value >= flexibleTP_CCI_level && curr_value < flexibleTP_CCI_level)
+        return (TRUE);
+    else
+        return (FALSE);
+}
+
+
+
+bool flexible_shortCloseSignal()
+{
+    // short close signal - cross of CCI indicator of -100 line down-up
+    double prev_value = iCCI(NULL, 0, flexibleTP_CCI, PRICE_CLOSE, 2);
+    double curr_value = iCCI(NULL, 0, flexibleTP_CCI, PRICE_CLOSE, 1);
+
+    if (prev_value <= -flexibleTP_CCI_level && curr_value > flexibleTP_CCI_level)
+        return (TRUE);
+    else
+        return (FALSE);
 }

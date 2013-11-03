@@ -60,7 +60,6 @@ extern int  flexibleTP_CCI_level = 100;
 
 double expertVersion;
 double firstEnvelopeDev;
-double secondEnvelopeDev;
 double maxDrawDownSeenInPercent;
 double last_high_envelope;
 double last_low_envelope;
@@ -72,7 +71,6 @@ bool closeLongGrid_requested;
 bool closeShortGrid_requested;
 bool risk_increase_alert_shown;
 int firstEnvelopePeriod;
-int secondEnvelopePeriod;
 bool Gi_272;
 bool resend_order;
 int resend_kind;
@@ -110,10 +108,25 @@ int translateValsIntoIndex(int N, int a1, int b1, int c1)
 }
 
 
+datetime test_started;
+
 
 int init() {
-   if (!IsDllsAllowed())
-       Alert("You have to enable DLLs in order to work with this product");
+   if (StringSubstr(Symbol(), 0, 6) != "AUDNZD") {
+      Alert("ERROR: EA will only run on AUDNZD");
+      return (-1);
+   }
+   if (Period() != PERIOD_M15) {
+      Alert("ERROR: EA will only run on the M15 Chart");
+      return (-1);
+   }
+   double lotstep = MarketInfo(Symbol(), MODE_LOTSTEP);
+   if (MM_UseMoneyManagement && MM_LotSize < lotstep) {
+      Alert("ERROR: Your MM_LotSize setting is lower than your brokers LotStep value. Your MM_LotSize must be at least " + DoubleToStr(lotstep, 2));
+      return (-1);
+   }
+
+   test_started = GetTickCount();
 
    // translate index
    if (entryOptUseIndex) {
@@ -132,7 +145,7 @@ int init() {
    // check entry by trend MA settings
    if (entryByTrend) {
        if (!(entryByTrend_FastMAPeriod <= entryByTrend_MidMAPeriod && entryByTrend_MidMAPeriod <= entryByTrend_SlowMAPeriod)) {
-           Print("Inconsistent entryByTrend MA periods");
+           Alert("Inconsistent entryByTrend MA periods");
            return (-1);
        }
    }
@@ -140,11 +153,8 @@ int init() {
    expertVersion = 1.0;
    firstEnvelopePeriod = 80;
    firstEnvelopeDev = 0.35;
-   secondEnvelopePeriod = 10;
-   secondEnvelopeDev = 0.3;
    maxDrawDownSeenInPercent = 0.0;
    Gi_272 = TRUE; // some mode, switches envelopes shift (false adds one extra bar to shift)
-//   gridProfitTarget = 85; // profit target in grid
    resend_order = FALSE;
    tp_update_request = TRUE;
    if (!setExplicitTP)
@@ -170,11 +180,6 @@ int init() {
       else
           symbolPoint = Point;
    }
-   HideTestIndicators(TRUE);
-   last_high_envelope = iEnvelopes(NULL, 0, secondEnvelopePeriod, MODE_SMA, 0, PRICE_CLOSE, secondEnvelopeDev, MODE_UPPER, 0);
-   last_low_envelope = iEnvelopes(NULL, 0, secondEnvelopePeriod, MODE_SMA, 0, PRICE_CLOSE, secondEnvelopeDev, MODE_LOWER, 0);
-   last_close = iClose(NULL, 0, 0);
-   HideTestIndicators(FALSE);
    Comment("");
    if (ObjectFind("WTF_BKGR") != -1) ObjectDelete("WTF_BKGR");
    if (ObjectFind("WTF_BKGR2") != -1) ObjectDelete("WTF_BKGR2");
@@ -214,6 +219,8 @@ int init() {
 
 // 52D46093050F38C27267BCE42543EF60
 void deinit() {
+    Print("Seconds passed: " + DoubleToStr((GetTickCount() - test_started)/1000.0, 2));
+
    Comment("");
    if (ObjectFind("WTF_BKGR") != -1) ObjectDelete("WTF_BKGR");
    if (ObjectFind("WTF_BKGR2") != -1) ObjectDelete("WTF_BKGR2");
@@ -249,24 +256,11 @@ void deinit() {
 
 // EA2B2676C28C0DB26D39331A336C6B92
 void start() {
-   if (StringSubstr(Symbol(), 0, 6) != "AUDNZD") {
-      Comment("ERROR: EA will only run on AUDNZD");
-      return;
-   }
-   if (Period() != PERIOD_M15) {
-      Comment("ERROR: EA will only run on the M15 Chart");
-      return;
-   }
-   double lotstep = MarketInfo(Symbol(), MODE_LOTSTEP);
-   if (MM_UseMoneyManagement && MM_LotSize < lotstep) {
-      Comment("ERROR: Your MM_LotSize setting is lower than your brokers LotStep value. Your MM_LotSize must be at least " + DoubleToStr(lotstep, 2));
-      return;
-   }
-   init_market_info();
-
    // every hour update TP leves to reflect possible extra swap
    static int prev_hour = 0;
    if (prev_hour != Hour()) {
+       init_market_info();
+
        if (setExplicitTP && compensateSwapAndCommission)
            tp_update_request = TRUE;
        prev_hour = Hour();
@@ -275,57 +269,56 @@ void start() {
    // determine both grids settings
    int max_long_index = -1, min_long_index = -1;
    int max_short_index = -1, min_short_index = -1;
-   int long_count, short_count;
+   int long_count = 0, short_count = 0;
 
-   long_count  = get_grid_params(OP_BUY, min_long_index, max_long_index);
-   short_count = get_grid_params(OP_SELL, min_short_index, max_short_index);
+   if (OrdersTotal() > 0) {
+       long_count  = get_grid_params(OP_BUY, min_long_index, max_long_index);
+       short_count = get_grid_params(OP_SELL, min_short_index, max_short_index);
+
+       if (!setExplicitTP) {
+           double longGridProfit = currentGridProfit(MagicNumber, OP_BUY);
+           double shortGridProfit = currentGridProfit(MagicNumber, OP_SELL);
+
+           // profit target reached on long grid
+           if (longGridProfit >= gridProfitTarget) {
+               if (!flexibleTP)
+                   closeLongGrid_requested = TRUE;
+               else
+                   closeLongGrid_requested = flexible_longCloseSignal();
+           }
+           // profit target reached on short grid
+           if (shortGridProfit >= gridProfitTarget) {
+               if (!flexibleTP)
+                   closeShortGrid_requested = TRUE;
+               else
+                   closeShortGrid_requested = flexible_shortCloseSignal();
+           }
+       }
+       else {
+           if (tp_update_request) {
+               if (updateTPLevels(OP_BUY) && updateTPLevels(OP_SELL))
+                   tp_update_request = FALSE;
+           }
+       }
+   }
 
    nextLongOrderIndex = long_count;
    nextShortOrderIndex = short_count;
 
-   if (!setExplicitTP) {
-       double longGridProfit = currentGridProfit(MagicNumber, OP_BUY);
-       double shortGridProfit = currentGridProfit(MagicNumber, OP_SELL);
-
-       // profit target reached on long grid
-       if (longGridProfit >= gridProfitTarget) {
-           if (!flexibleTP)
-               closeLongGrid_requested = TRUE;
-           else
-               closeLongGrid_requested = flexible_longCloseSignal();
-       }
-       // profit target reached on short grid
-       if (shortGridProfit >= gridProfitTarget) {
-           if (!flexibleTP)
-               closeShortGrid_requested = TRUE;
-           else
-               closeShortGrid_requested = flexible_shortCloseSignal();
-       }
-   }
-   else
-       if (tp_update_request) {
-           if (updateTPLevels(OP_BUY) && updateTPLevels(OP_SELL))
-               tp_update_request = FALSE;
-       }
-
-   if (!closeLongGrid_requested)
+   if (!closeLongGrid_requested) {
        increase_long_grid_if_needed(long_count, min_long_index, max_long_index);
+   }
    else
        closeLongGrid(MagicNumber);
 
-   if (!closeShortGrid_requested)
+   if (!closeShortGrid_requested) {
        increase_short_grid_if_needed(short_count, min_short_index, max_short_index);
+   }
    else
        closeShortGrid(MagicNumber);
 
    if (!IsTesting() && !IsVisualMode())
        updateBanner();
-
-   HideTestIndicators(TRUE);
-   last_high_envelope = iEnvelopes(NULL, 0, secondEnvelopePeriod, MODE_SMA, 0, PRICE_CLOSE, secondEnvelopeDev, MODE_UPPER, 0);
-   last_low_envelope = iEnvelopes(NULL, 0, secondEnvelopePeriod, MODE_SMA, 0, PRICE_CLOSE, secondEnvelopeDev, MODE_LOWER, 0);
-   last_close = iClose(NULL, 0, 0);
-   HideTestIndicators(FALSE);
 }
 
 
@@ -392,10 +385,6 @@ void increase_long_grid_if_needed(int grid_size, int min_index, int max_index)
          }
       }
    } else {
-       // very rare condition (close on opposite signal?)
-       if (closeSignal() == 2)
-           closeLongGrid_requested = TRUE;
-
        if (grid_size > MaxOpenOrders)
            return;
 
@@ -444,9 +433,6 @@ void increase_short_grid_if_needed(int grid_size, int min_index, int max_index)
          }
       }
    } else {
-       if (closeSignal() == 1)
-           closeShortGrid_requested = TRUE;
-
        if (grid_size > MaxOpenOrders)
            return;
 
@@ -553,43 +539,6 @@ int initialSignal() {
    }
 
    return (result);
-}
-
-
-// D1DDCE31F1A86B3140880F6B1877CBF8
-int closeSignal() {
-   double Ld_0;
-   double Ld_8;
-   double Ld_16;
-   double Ld_24;
-   double Ld_32;
-   double close_prev;
-   HideTestIndicators(TRUE);
-   if (!Gi_272) {
-      Ld_24 = iEnvelopes(NULL, 0, secondEnvelopePeriod, MODE_SMA, 0, PRICE_CLOSE, secondEnvelopeDev, MODE_UPPER, 1);
-      Ld_32 = iEnvelopes(NULL, 0, secondEnvelopePeriod, MODE_SMA, 0, PRICE_CLOSE, secondEnvelopeDev, MODE_LOWER, 1);
-      close_prev = iClose(NULL, 0, 1);
-      Ld_0 = iEnvelopes(NULL, 0, secondEnvelopePeriod, MODE_SMA, 0, PRICE_CLOSE, secondEnvelopeDev, MODE_UPPER, 0);
-      Ld_8 = iEnvelopes(NULL, 0, secondEnvelopePeriod, MODE_SMA, 0, PRICE_CLOSE, secondEnvelopeDev, MODE_LOWER, 0);
-      Ld_16 = iClose(NULL, 0, 0);
-   } else {
-      Ld_24 = iEnvelopes(NULL, 0, secondEnvelopePeriod, MODE_SMA, 0, PRICE_CLOSE, secondEnvelopeDev, MODE_UPPER, 2);
-      Ld_32 = iEnvelopes(NULL, 0, secondEnvelopePeriod, MODE_SMA, 0, PRICE_CLOSE, secondEnvelopeDev, MODE_LOWER, 2);
-      close_prev = iClose(NULL, 0, 2);
-      Ld_0 = iEnvelopes(NULL, 0, secondEnvelopePeriod, MODE_SMA, 0, PRICE_CLOSE, secondEnvelopeDev, MODE_UPPER, 1);
-      Ld_8 = iEnvelopes(NULL, 0, secondEnvelopePeriod, MODE_SMA, 0, PRICE_CLOSE, secondEnvelopeDev, MODE_LOWER, 1);
-      Ld_16 = iClose(NULL, 0, 1);
-   }
-   HideTestIndicators(FALSE);
-
-   if (Ld_32 < close_prev)
-       if (!((last_low_envelope < last_close && !Gi_272) || (Gi_272 && Ld_8 < Ld_16)))
-           return (1);
-   if (Ld_24 > close_prev)
-       if (!((last_high_envelope > last_close && !Gi_272) || (Gi_272 && Ld_0 > Ld_16)))
-           return (2);
-
-   return (0);
 }
 
 

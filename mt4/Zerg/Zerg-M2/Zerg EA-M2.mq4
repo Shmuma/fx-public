@@ -16,6 +16,7 @@
 
 extern string Control_options = "================ Control options";
 extern bool noMoreNewGrids = FALSE;
+extern bool collectExtraStat = FALSE;
 
 extern string MM_Settings = "================ Money Management";
 extern bool MM_UseMoneyManagement = TRUE;
@@ -128,6 +129,9 @@ int init() {
 
    test_started = GetTickCount();
 
+   // initialize extra statistics
+   stat_init();
+
    // translate index
    if (entryOptUseIndex) {
        int a, b, c;
@@ -221,6 +225,8 @@ int init() {
 void deinit() {
     Print("Seconds passed: " + DoubleToStr((GetTickCount() - test_started)/1000.0, 2));
 
+    stat_deinit();
+
    Comment("");
    if (ObjectFind("WTF_BKGR") != -1) ObjectDelete("WTF_BKGR");
    if (ObjectFind("WTF_BKGR2") != -1) ObjectDelete("WTF_BKGR2");
@@ -265,6 +271,9 @@ void start() {
            tp_update_request = TRUE;
        prev_hour = Hour();
    }
+
+   // track extra stat of expert
+   stat_new_tick();
 
    // determine both grids settings
    int max_long_index = -1, min_long_index = -1;
@@ -1097,4 +1106,81 @@ bool flexible_shortCloseSignal()
         return (TRUE);
     else
         return (FALSE);
+}
+
+
+// --------------------------------------------------
+// Statistics routines and state
+// --------------------------------------------------
+datetime stat_cur_date;
+double stat_max_drawdown;
+int stat_cur_day;
+int stat_log_fd;
+int stat_hist_orders;
+int stat_sl;
+
+
+void stat_init()
+{
+    if (!collectExtraStat)
+        return;
+
+    stat_reset();
+    stat_log_fd = FileOpen("zerg-stat.csv", FILE_WRITE | FILE_CSV, ',');
+    FileWrite(stat_log_fd, "Date", "MaxDD", "SL triggered");
+}
+
+
+void stat_new_tick()
+{
+    if (!collectExtraStat)
+        return;
+
+    if (stat_cur_day != Day()) {
+        stat_cur_day = Day();
+        stat_new_day();
+    }
+
+    // check for SL triggered
+    if (OrdersHistoryTotal() != stat_hist_orders) {
+        for (int i = OrdersHistoryTotal()-1; i >= stat_hist_orders; i--) {
+            if (OrderSelect(i, SELECT_BY_POS, MODE_HISTORY)) {
+                if (OrderCloseTime() != 0 && OrderClosePrice() == OrderStopLoss()) {
+                    stat_sl++;
+                }
+            }
+        }
+        stat_hist_orders = OrdersHistoryTotal();
+    }
+    if (OrdersTotal() == 0)
+        return;
+
+    stat_max_drawdown = MathMin(current_profit(), stat_max_drawdown);
+
+}
+
+
+void stat_deinit()
+{
+    if (!collectExtraStat)
+        return;
+    FileClose(stat_log_fd);
+}
+
+
+void stat_reset()
+{
+    stat_cur_date = TimeCurrent();
+    stat_cur_day = Day();
+    stat_max_drawdown = 0.0;
+    stat_hist_orders = OrdersHistoryTotal();
+    stat_sl = 0;
+}
+
+
+void stat_new_day()
+{
+    Print("Daily stat for " + TimeToStr(stat_cur_date, TIME_DATE) + ": max DD = " + DoubleToStr(stat_max_drawdown, 2) + ", SL=" + stat_sl);
+    FileWrite(stat_log_fd, TimeToStr(stat_cur_date, TIME_DATE), DoubleToStr(stat_max_drawdown, 2), stat_sl);
+    stat_reset();
 }

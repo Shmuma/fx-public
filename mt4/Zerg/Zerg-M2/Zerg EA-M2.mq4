@@ -380,7 +380,7 @@ void increase_long_grid_if_needed(int grid_size, int min_index, int max_index)
            return;
        if (initialSignal() == 1 || (resend_order && resend_kind == 1)) {
           ticket = OrderSend(Symbol(), OP_BUY, lots_to_trade, Ask, Slippage, 0, 0,
-                             "WTF000 " + (nextLongOrderIndex + 1), MagicNumber, 0, Blue);
+                             "SZ-M2-000 " + (nextLongOrderIndex + 1), MagicNumber, 0, Blue);
          if (ticket < 0) {
             error = GetLastError();
             Print("Error Opening Buy Order(", error, "): ", ErrorDescription(error));
@@ -399,7 +399,7 @@ void increase_long_grid_if_needed(int grid_size, int min_index, int max_index)
 
        if (increaseGridCheck(grid_size, TRUE, min_index, max_index)) {
            ticket = OrderSend(Symbol(), OP_BUY, lots_to_trade, Ask, Slippage, 0, 0,
-                              "WTF000 " + (nextLongOrderIndex + 1), MagicNumber, 0, Blue);
+                              "SZ-M2-000 " + (nextLongOrderIndex + 1), MagicNumber, 0, Blue);
            if (ticket < 0) {
                error = GetLastError();
                Print("Error Opening Buy Order(", error, "): ", ErrorDescription(error));

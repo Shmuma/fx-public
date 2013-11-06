@@ -39,12 +39,12 @@ extern bool increaseOnProfit = FALSE;
 extern int increaseOnProfitGap = 1;
 extern int increaseMaxOrders = 4;
 
-extern string M2_EntryByTrend = "==================== Entry by trend";
-extern bool entryByTrend = FALSE;
-extern int entryByTrend_TF = 1440;
-extern int entryByTrend_FastMAPeriod = 1;
-extern int entryByTrend_MidMAPeriod = 2;
-extern int entryByTrend_SlowMAPeriod = 10;
+/* extern */ string M2_EntryByTrend = "==================== Entry by trend";
+/* extern */ bool entryByTrend = FALSE;
+/* extern */ int entryByTrend_TF = 1440;
+/* extern */ int entryByTrend_FastMAPeriod = 1;
+/* extern */ int entryByTrend_MidMAPeriod = 2;
+/* extern */ int entryByTrend_SlowMAPeriod = 10;
 
 // used only in optimisation of MA to reduce search space
 //extern
@@ -54,10 +54,10 @@ int entryOptMaxN = 30;
 //extern
 int entryOptIndex = 0;
 
-extern string M2_FlexibleTP = "==================== Flexible TP levels";
-extern bool flexibleTP = FALSE;
-extern int  flexibleTP_CCI = 14;
-extern int  flexibleTP_CCI_level = 100;
+/* extern */ string M2_FlexibleTP = "==================== Flexible TP levels";
+/* extern */ bool flexibleTP = FALSE;
+/* extern */ int  flexibleTP_CCI = 14;
+/* extern */ int  flexibleTP_CCI_level = 100;
 
 double expertVersion;
 double firstEnvelopeDev;
@@ -471,8 +471,8 @@ bool increaseGridCheck(int grid_size, bool long_grid, int min_index, int max_ind
                return (TRUE);
        }
 
-       OrderSelect(max_index, SELECT_BY_POS);
        if (increaseOnProfit) {
+           OrderSelect(min_index, SELECT_BY_POS);
            if (Ask - OrderOpenPrice() >= increaseOnProfitGap * symbolPoint)
                if (grid_size < increaseMaxOrders)
                    return (TRUE);
@@ -485,8 +485,8 @@ bool increaseGridCheck(int grid_size, bool long_grid, int min_index, int max_ind
                return (TRUE);
        }
 
-       OrderSelect(min_index, SELECT_BY_POS);
        if (increaseOnProfit) {
+           OrderSelect(max_index, SELECT_BY_POS);
            if (OrderOpenPrice() - Bid >= increaseOnProfitGap * symbolPoint)
                if (grid_size < increaseMaxOrders)
                    return (TRUE);

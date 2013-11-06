@@ -39,12 +39,12 @@ extern bool increaseOnProfit = FALSE;
 extern int increaseOnProfitGap = 1;
 extern int increaseMaxOrders = 4;
 
-/* extern */ string M2_EntryByTrend = "==================== Entry by trend";
-/* extern */ bool entryByTrend = FALSE;
-/* extern */ int entryByTrend_TF = 1440;
-/* extern */ int entryByTrend_FastMAPeriod = 1;
-/* extern */ int entryByTrend_MidMAPeriod = 2;
-/* extern */ int entryByTrend_SlowMAPeriod = 10;
+extern string M2_EntryByTrend = "==================== Entry by trend";
+extern bool entryByTrend = FALSE;
+extern int entryByTrend_TF = 1440;
+extern int entryByTrend_FastMAPeriod = 1;
+extern int entryByTrend_MidMAPeriod = 2;
+extern int entryByTrend_SlowMAPeriod = 10;
 
 // used only in optimisation of MA to reduce search space
 //extern

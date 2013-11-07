@@ -1,4 +1,4 @@
-#property copyright "Zerg M2-dev"
+#property copyright "Zerg by Shmuma"
 #property link      ""
 
 #include <stdlib.mqh>

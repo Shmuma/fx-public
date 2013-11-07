@@ -1,4 +1,4 @@
-#property copyright "Zerg TLP"
+#property copyright "Zerg M2-dev"
 #property link      ""
 
 #include <stdlib.mqh>
@@ -24,6 +24,11 @@ extern double MM_LotSize = 0.01;
 extern double MM_PerHowMuchEquity = 2000.0;
 extern string MM_Note1 = "MM must be FALSE to use FixedLots";
 extern double FixedLots = 0.01;
+
+extern string Entry_Settings = "================ Entry Settings";
+extern int envelopePeriod = 80;
+extern double envelopeDev = 0.35;
+
 extern string Grid_Settings = "================ Grid Settings";
 extern int MaxOpenOrders = 60;
 extern int GridOrderGapPips = 5;
@@ -38,6 +43,7 @@ extern string M2_IncreaseOnProfit = "==================== Increase on profit";
 extern bool increaseOnProfit = FALSE;
 extern int increaseOnProfitGap = 1;
 extern int increaseMaxOrders = 4;
+extern bool increaseOnProfitInvertedLogic = TRUE;
 
 extern string M2_EntryByTrend = "==================== Entry by trend";
 extern bool entryByTrend = FALSE;
@@ -60,7 +66,6 @@ extern int  flexibleTP_CCI = 14;
 extern int  flexibleTP_CCI_level = 100;
 
 double expertVersion;
-double firstEnvelopeDev;
 double maxDrawDownSeenInPercent;
 double last_high_envelope;
 double last_low_envelope;
@@ -71,7 +76,6 @@ double symbolPoint;
 bool closeLongGrid_requested;
 bool closeShortGrid_requested;
 bool risk_increase_alert_shown;
-int firstEnvelopePeriod;
 bool Gi_272;
 bool resend_order;
 int resend_kind;
@@ -154,9 +158,7 @@ int init() {
        }
    }
 
-   expertVersion = 1.0;
-   firstEnvelopePeriod = 80;
-   firstEnvelopeDev = 0.35;
+   expertVersion = 0.1;
    maxDrawDownSeenInPercent = 0.0;
    Gi_272 = TRUE; // some mode, switches envelopes shift (false adds one extra bar to shift)
    resend_order = FALSE;
@@ -472,7 +474,10 @@ bool increaseGridCheck(int grid_size, bool long_grid, int min_index, int max_ind
        }
 
        if (increaseOnProfit) {
-           OrderSelect(min_index, SELECT_BY_POS);
+           if (increaseOnProfitInvertedLogic)
+               OrderSelect(min_index, SELECT_BY_POS);
+           else
+               OrderSelect(max_index, SELECT_BY_POS);
            if (Ask - OrderOpenPrice() >= increaseOnProfitGap * symbolPoint)
                if (grid_size < increaseMaxOrders)
                    return (TRUE);
@@ -486,7 +491,10 @@ bool increaseGridCheck(int grid_size, bool long_grid, int min_index, int max_ind
        }
 
        if (increaseOnProfit) {
-           OrderSelect(max_index, SELECT_BY_POS);
+           if (increaseOnProfitInvertedLogic)
+               OrderSelect(max_index, SELECT_BY_POS);
+           else
+               OrderSelect(min_index, SELECT_BY_POS);
            if (OrderOpenPrice() - Bid >= increaseOnProfitGap * symbolPoint)
                if (grid_size < increaseMaxOrders)
                    return (TRUE);
@@ -501,11 +509,11 @@ bool increaseGridCheck(int grid_size, bool long_grid, int min_index, int max_ind
 int initialSignal() {
    HideTestIndicators(TRUE);
 
-   double upper_2_back = iEnvelopes(NULL, 0, firstEnvelopePeriod, MODE_SMA, 0, PRICE_CLOSE, firstEnvelopeDev, MODE_UPPER, 2);
-   double lower_2_back = iEnvelopes(NULL, 0, firstEnvelopePeriod, MODE_SMA, 0, PRICE_CLOSE, firstEnvelopeDev, MODE_LOWER, 2);
+   double upper_2_back = iEnvelopes(NULL, 0, envelopePeriod, MODE_SMA, 0, PRICE_CLOSE, envelopeDev, MODE_UPPER, 2);
+   double lower_2_back = iEnvelopes(NULL, 0, envelopePeriod, MODE_SMA, 0, PRICE_CLOSE, envelopeDev, MODE_LOWER, 2);
    double close_2_back = iClose(NULL, 0, 2);
-   double upper_prev = iEnvelopes(NULL, 0, firstEnvelopePeriod, MODE_SMA, 0, PRICE_CLOSE, firstEnvelopeDev, MODE_UPPER, 1);
-   double lower_prev = iEnvelopes(NULL, 0, firstEnvelopePeriod, MODE_SMA, 0, PRICE_CLOSE, firstEnvelopeDev, MODE_LOWER, 1);
+   double upper_prev = iEnvelopes(NULL, 0, envelopePeriod, MODE_SMA, 0, PRICE_CLOSE, envelopeDev, MODE_UPPER, 1);
+   double lower_prev = iEnvelopes(NULL, 0, envelopePeriod, MODE_SMA, 0, PRICE_CLOSE, envelopeDev, MODE_LOWER, 1);
    double close_prev = iClose(NULL, 0, 1);
    HideTestIndicators(FALSE);
 
@@ -881,7 +889,7 @@ void updateBanner() {
    }
    if (ObjectFind("WTF_LV") < 0) {
       ObjectCreate("WTF_LV", OBJ_LABEL, 0, 0, 0);
-      ObjectSetText("WTF_LV", "WTF EA v" + DoubleToStr(expertVersion, 1), 9, "Tahoma Bold", White);
+      ObjectSetText("WTF_LV", "ZergEA M2-dev v" + DoubleToStr(expertVersion, 1), 9, "Tahoma Bold", White);
       ObjectSet("WTF_LV", OBJPROP_CORNER, 0);
       ObjectSet("WTF_LV", OBJPROP_BACK, FALSE);
       ObjectSet("WTF_LV", OBJPROP_XDISTANCE, 13);

@@ -51,6 +51,7 @@ extern int entryByTrend_TF = 1440;
 extern int entryByTrend_FastMAPeriod = 1;
 extern int entryByTrend_MidMAPeriod = 2;
 extern int entryByTrend_SlowMAPeriod = 10;
+extern bool entryByTrend_showSignals = FALSE;
 
 // used only in optimisation of MA to reduce search space
 //extern
@@ -117,6 +118,7 @@ datetime test_started;
 
 
 int init() {
+/*
    if (StringSubstr(Symbol(), 0, 6) != "AUDNZD") {
       Alert("ERROR: EA will only run on AUDNZD");
       return (-1);
@@ -125,6 +127,7 @@ int init() {
       Alert("ERROR: EA will only run on the M15 Chart");
       return (-1);
    }
+*/
    double lotstep = MarketInfo(Symbol(), MODE_LOTSTEP);
    if (MM_UseMoneyManagement && MM_LotSize < lotstep) {
       Alert("ERROR: Your MM_LotSize setting is lower than your brokers LotStep value. Your MM_LotSize must be at least " + DoubleToStr(lotstep, 2));
@@ -531,11 +534,12 @@ int initialSignal() {
 
    // check for trend direction if needed
    if (result != 0 && entryByTrend) {
-       double fast = iMA(NULL, entryByTrend_TF, entryByTrend_FastMAPeriod, 1, MODE_SMA, PRICE_CLOSE, 0);
-       double mid  = iMA(NULL, entryByTrend_TF, entryByTrend_MidMAPeriod,  1, MODE_SMA, PRICE_CLOSE, 0);
-       double slow = iMA(NULL, entryByTrend_TF, entryByTrend_SlowMAPeriod, 1, MODE_SMA, PRICE_CLOSE, 0);
+       double fast = iMA(NULL, entryByTrend_TF, entryByTrend_FastMAPeriod, 0, MODE_SMA, PRICE_CLOSE, 1);
+       double mid  = iMA(NULL, entryByTrend_TF, entryByTrend_MidMAPeriod,  0, MODE_SMA, PRICE_CLOSE, 1);
+       double slow = iMA(NULL, entryByTrend_TF, entryByTrend_SlowMAPeriod, 0, MODE_SMA, PRICE_CLOSE, 1);
 
        int ma_signal = 0;
+       string comment = "Signal: " + result + ", MA: " + DoubleToStr(fast, 5) + ", " + DoubleToStr(mid, 5) + ", " + DoubleToStr(slow, 5);
 
        // long signal if slow under mid and mid under fast
        if (slow <= mid && mid <= fast)
@@ -552,6 +556,11 @@ int initialSignal() {
        // result == 2 means short grid signal. 
        if (result == 2 && ma_signal == 1) {
            result = 0;
+       }
+
+       if (entryByTrend_showSignals) {
+           comment = comment + ", ma_sig = " + ma_signal + ", res = " + result;
+           Comment(comment);
        }
    }
 
